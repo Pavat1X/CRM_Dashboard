@@ -25,7 +25,7 @@ if upload is not None:
 
     ## represent data - will add time series later after figuring out how to get the latest data from sendgrid
 
-if show_button:
-    serve_data = data[columns_list]
-    show_data = serve_data.loc[serve_data['Date Set Live'] == selection + " TOTAL" ]
-    st.dataframe(show_data)
+    if show_button:
+        serve_data = data[columns_list]
+        show_data = serve_data.loc[serve_data['Date Set Live'] == selection + " TOTAL" ]
+        st.dataframe(show_data)

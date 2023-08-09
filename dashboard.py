@@ -6,6 +6,9 @@ with st.sidebar:
     email_health = st.file_uploader('Upload health drip data', type=['csv'], key='email_h')
     email_beauty = st.file_uploader('Upload beauty drip data', type=['csv'], key='email_b')
     email_dental = st.file_uploader('Upload dental drip data', type=['csv'], key='email_d')
+    #email_vaccine = st.file_uploader('Upload vaccine drip data', type=['csv'], key='email_v')
+    #email_checkup = st.file_uploader('Upload checkup drip data', type=['csv'], key='email_c')
+    #email_food = st.file_uploader('Upload food drip data', type=['csv'], key='email_f')
     ga_data = st.file_uploader('Upload GA4 data', type=['csv'], key='ga')
 
 
@@ -13,21 +16,37 @@ if (email_health is not None) and (email_beauty is not None) and (email_dental i
     select_one, select_two, select_three = st.columns(3)
     segmentation = select_one.selectbox('segment', ['health', 'beauty', 'dental'])
     ga = pd.read_csv(ga_data)
+    ga.rename(columns = {'Event campaign name': 'campaign'}, inplace = True)
+    #if segmentation:
+        #data_file_name = "email_%s" %segmentation
+        #data = pd.read_csv(data_file_name)
+        #ga = ga[ga['campaign'].str.contains(segmentation)]
+
     if segmentation == 'health':
         data = pd.read_csv(email_health)
-        ga = ga.loc[ga['campaign'] == 'category-lv-1-health']
+        ga = ga[ga['campaign'].str.contains('health')]
     elif segmentation == 'dental':
         data = pd.read_csv(email_dental)
-        ga = ga.loc[ga['campaign'] == 'category-lv-1-dental']
+        ga = ga[ga['campaign'].str.contains('dental')]
     elif segmentation == 'beauty':
         data = pd.read_csv(email_beauty)
-        ga = ga.loc[ga['campaign'] == 'category-lv-1-beauty']
+        ga = ga[ga['campaign'].str.contains('beauty')]
+    #elif segmentation == 'vaccine':
+        #data = pd.read_csv(email_vaccine)
+        #ga = ga[ga['campaign'].str.contains('vaccine')]
+    #elif segmentation == 'checkup':
+        #data = pd.read_csv(email_checkup)
+        #ga = ga[ga['campaign'].str.contains('checkup')]
+    #elif segmentation == 'food':
+        #data = pd.read_csv(email_food)
+        #ga = ga[ga['campaign'].str.contains('food')]
     else:
         st.text('no file uploaded')
     ga = ga.reset_index()
     ga = ga.drop('index', axis = 1)
-    #st.dataframe(ga)
-
+    ga.columns = ga.columns.str.lower()
+    ga['source / medium'] = ga['source / medium'].str.replace(" ","")
+    ga.columns = ga.columns.str.replace(" ", "")
 
     emails = list(dict.fromkeys(data['Email Subject']))
     for i in emails:
@@ -71,12 +90,11 @@ if (email_health is not None) and (email_beauty is not None) and (email_dental i
     final_data = pd.merge(pres_data, ga, on='drip_tags')
     final_data = final_data.drop(columns=['campaign'])
     st.dataframe(final_data)
-    #d = final_data['Email Subject']
-    #s = final_data['drip_tags']#.loc[dates:dates_two]
-    #final_data = final_data.iloc[:, 1:].set_index('source/medium')
-    #final_data = final_data.dropna()
-    #final_data = final_data.loc[s].reset_index()
-    #final_data['Email'] = d
-    #final_data = final_data.drop(['drip_tags', 'campaign'], axis=1)
-    #final_data = final_data.set_index('Email')
-    #st.dataframe(final_data)
+    st.caption('all drips')
+    st.dataframe(pres_data)
+
+
+    download = final_data.to_csv().encode('utf-8')
+
+    st.download_button('download data', download,
+                       "dashboard_data_%s.csv" %segmentation, "text/csv")

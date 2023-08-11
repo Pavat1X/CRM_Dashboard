@@ -13,8 +13,8 @@ with st.sidebar:
 
 
 if (email_health is not None) and (email_beauty is not None) and (email_dental is not None) and (ga_data is not None):
-    select_one, select_two, select_three = st.columns(3)
-    segmentation = select_one.selectbox('segment', ['health', 'beauty', 'dental'])
+    segmentation = st.selectbox('segment', ['health', 'beauty', 'dental'])
+    select_two, select_three = st.columns(2)
     ga = pd.read_csv(ga_data)
     ga.rename(columns = {'Event campaign name': 'campaign'}, inplace = True)
     #if segmentation:
@@ -59,8 +59,13 @@ if (email_health is not None) and (email_beauty is not None) and (email_dental i
         if pd.isnull(i) == True:
             date_series.remove(i)
 
-    dates = select_two.selectbox('pick the start date', date_series)
-    dates_two = select_three.selectbox('pick the end date', date_series)
+    dates = select_two.selectbox('pick the start date (period 1)', date_series)
+    dates_two = select_three.selectbox('pick the end date (period 1)', date_series)
+    st.caption('pick dates to compare')
+    select_four, select_five = st.columns(2)
+    dates_three = select_four.selectbox('pick the start date (period 2)', date_series, key='seconddate')
+    dates_four = select_five.selectbox('pick the end date (period 2)', date_series, key='thirddate')
+
 
     drip_tags = [] ##working
     for i in range(1, len(emails) + 1):
@@ -85,10 +90,53 @@ if (email_health is not None) and (email_beauty is not None) and (email_dental i
     pres_data = pres_data[['Email Subject', 'Cumulative Open Rate', 'Cumulative Click Rate', 'Click Through Rate']]
     pres_data['drip_tags'] = pres_data['Email Subject'].map(lambda x: email_drip[x])
     pres_data = pres_data[['Email Subject', 'drip_tags', 'Cumulative Open Rate', 'Cumulative Click Rate', 'Click Through Rate']]
+
+    compare_data = data.copy()
+    compare_data = compare_data[['Email Subject', 'Date', 'Total Opens', 'Total Clicks', 'Delivered']]
+    compare_data = compare_data.dropna()
+    compare_data = compare_data.set_index('Date')
+    compare_data = compare_data.loc[dates_three:dates_four]
+    compare_data = compare_data.groupby('Email Subject', as_index=False).sum()
+    compare_data['Cumulative Open Rate'] = compare_data['Total Opens'] / compare_data['Delivered']
+    compare_data['Cumulative Click Rate'] = compare_data['Total Clicks'] / compare_data['Delivered']
+    compare_data['Click Through Rate'] = compare_data['Total Clicks'] / compare_data['Total Opens']
+    compare_data = compare_data[['Email Subject', 'Cumulative Open Rate', 'Cumulative Click Rate', 'Click Through Rate']]
+    compare_data['drip_tags'] = compare_data['Email Subject'].map(lambda x: email_drip[x])
+    compare_data = compare_data[
+        ['Email Subject', 'drip_tags', 'Cumulative Open Rate', 'Cumulative Click Rate', 'Click Through Rate']]
+    #st.dataframe(pres_data)
+    #st.dataframe(compare_data)
+
+    diff_matrix = pres_data[['Cumulative Open Rate', 'Cumulative Click Rate', 'Click Through Rate']].subtract(compare_data[['Cumulative Open Rate', 'Cumulative Click Rate', 'Click Through Rate']], axis=1)
+    #st.dataframe(diff_matrix)
+
+
+
     #st.dataframe(pres_data)
     ga = ga.rename(columns={'source/medium': 'drip_tags'})
     final_data = pd.merge(pres_data, ga, on='drip_tags')
     final_data = final_data.drop(columns=['campaign'])
+    final_data['Cumulative Open Rate'] = (100 * final_data['Cumulative Open Rate']).round(2).astype(str)+"%"
+    final_data['Cumulative Click Rate'] = (100 * final_data['Cumulative Click Rate']).round(2).astype(str)+"%"
+    final_data['Click Through Rate'] = (100 * final_data['Click Through Rate']).round(2).astype(str)+"%"
+
+    pres_data['Cumulative Open Rate'] = (100 * pres_data['Cumulative Open Rate']).round(2).astype(str)+"%"
+    pres_data['Cumulative Click Rate'] = (100 * pres_data['Cumulative Click Rate']).round(2).astype(str) + "%"
+    pres_data['Click Through Rate'] = (100 * pres_data['Click Through Rate']).round(2).astype(str) + "%"
+
+    pres_data ['delta Open Rate'] = diff_matrix['Cumulative Open Rate']
+    pres_data['delta Click Rate'] = diff_matrix['Cumulative Click Rate']
+    pres_data['delta CTR'] = diff_matrix['Click Through Rate']
+    pres_data = pres_data[['Email Subject', 'drip_tags', 'Cumulative Open Rate', 'delta Open Rate',
+                             'Cumulative Click Rate', 'delta Click Rate', 'Click Through Rate', 'delta CTR']]
+
+
+    final_data['delta Open Rate'] = diff_matrix['Cumulative Open Rate']
+    final_data['delta Click Rate'] = diff_matrix['Cumulative Click Rate']
+    final_data['delta CTR'] = diff_matrix['Click Through Rate']
+    final_data = final_data[['Email Subject', 'drip_tags', 'Cumulative Open Rate', 'delta Open Rate',
+                             'Cumulative Click Rate', 'delta Click Rate', 'Click Through Rate', 'delta CTR', 'sessions',
+                             'conversions']]
     st.dataframe(final_data)
     st.caption('all drips')
     st.dataframe(pres_data)
